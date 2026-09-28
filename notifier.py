@@ -64,9 +64,20 @@ def clean(s: str) -> str:
 
 # ---------- 取得・解析 ----------
 def fetch_listings():
-    r = requests.get(LIST_URL, headers=HEADERS, timeout=30)
+    s = requests.Session()
+    r = s.get(LIST_URL, headers=HEADERS, timeout=30)
     r.raise_for_status()
-    return parse_listings(r.text)
+    items = parse_listings(r.text)
+    if not items:
+        # 0件のときは原因調査用の情報を出す
+        soup = BeautifulSoup(r.text, "html.parser")
+        title = soup.title.get_text(strip=True) if soup.title else "(なし)"
+        m = re.search(r"出品数[：:]\s*(\d+)\s*件", r.text)
+        print(f"[診断] status={r.status_code} url={r.url} 長さ={len(r.text)} title={title} "
+              f"ページ表示の出品数={m.group(1) if m else '見つからず'}", flush=True)
+        if not m:
+            print("[診断] 先頭:", clean(soup.get_text(" "))[:400], flush=True)
+    return items
 
 
 def parse_listings(html: str):
